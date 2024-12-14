@@ -1,3 +1,21 @@
+// Drag & Drop Interfaces
+// We can have the Draggable interface inside any class renders
+// an element is Draggable
+interface Draggable {
+  dragStartHandler(event: DragEvent): void;
+  dragEndHandler(event: DragEvent): void;
+}
+
+// Project list class should be DragTargets
+interface DragTarget {
+  // Signal the browser that the thing you are dragging over is a valid thing
+  dragOverHandler(event: DragEvent): void;
+  // Permit the drop
+  dropHandler(event: DragEvent): void;
+  // To give some visual feedback to the user when drag and drop happens
+  dragLeaveHandler(event: DragEvent): void;
+}
+
 // Project Type
 enum ProjectStatus {
   Active,
@@ -162,7 +180,10 @@ abstract class Component<T extends HTMLElement, U extends HTMLElement> {
 }
 
 // ProjectItem Class
-class ProjectItem extends Component<HTMLUListElement, HTMLLIElement> {
+class ProjectItem
+  extends Component<HTMLUListElement, HTMLLIElement>
+  implements Draggable
+{
   private project: Project;
 
   get persons() {
@@ -183,7 +204,24 @@ class ProjectItem extends Component<HTMLUListElement, HTMLLIElement> {
     this.renderContent();
   }
 
-  configure() {}
+  @autobind
+  dragStartHandler(event: DragEvent): void {
+    console.log(event);
+  }
+
+  // @autobind
+  dragEndHandler(_: DragEvent): void {
+    console.log("DragEnd");
+  }
+
+  // 'this' causes issues when listening to eventHandlers
+  // you can call .bind(this)
+  // or here, I have a generalized implementation - a decorator - @autobind
+  configure() {
+    this.element.addEventListener("dragstart", this.dragStartHandler);
+    this.element.addEventListener("dragend", this.dragEndHandler);
+  }
+
   renderContent() {
     this.element.querySelector("h2")!.textContent = this.project.title;
     this.element.querySelector("h3")!.textContent = this.persons + " assigned";
