@@ -74,8 +74,25 @@ class ProjectState extends State<Project> {
       ProjectStatus.Active
     );
     this.projects.push(newProject);
+    this.updateListeners();
+  }
+
+  // move the project from the list it is currently in to the next list
+  // basically we are switching the state
+  moveProject(projectId: string, newStatus: ProjectStatus) {
+    const project = this.projects.find((prj) => prj.id === projectId);
+    // also check if we really did change the state?
+    // avoid unnecessary re-render cycle
+    if (project && project.status !== newStatus) {
+      project.status = newStatus;
+      this.updateListeners();
+    }
+  }
+
+  private updateListeners() {
     for (const listenerFn of this.listeners) {
-      listenerFn(this.projects.slice()); // to get copy of the array not the original array & that can be edited
+      // to get copy of the array not the original array & that can be edited
+      listenerFn(this.projects.slice());
     }
   }
 }
@@ -206,7 +223,13 @@ class ProjectItem
 
   @autobind
   dragStartHandler(event: DragEvent): void {
-    console.log(event);
+    // can be null because not all drag related event give you
+    // data that can be transferred using a dataTransfer
+    event.dataTransfer!.setData("text/plain", this.project.id);
+    // how the cursor would look like and tells the browser our indication
+    // that we are moving not copying - we remove stuff from one place
+    // and paste it to another place
+    event.dataTransfer!.effectAllowed = "move";
   }
 
   // @autobind
@@ -230,7 +253,10 @@ class ProjectItem
 }
 
 // Projectlist
-class ProjectList extends Component<HTMLDivElement, HTMLElement> {
+class ProjectList
+  extends Component<HTMLDivElement, HTMLElement>
+  implements DragTarget
+{
   assignedProjects: Project[];
 
   constructor(private type: "active" | "finished") {
@@ -239,6 +265,38 @@ class ProjectList extends Component<HTMLDivElement, HTMLElement> {
 
     this.configure();
     this.renderContent();
+  }
+
+  // @autobind because the below use eventHandlers which mess up 'this'
+  @autobind
+  dragOverHandler(event: DragEvent): void {
+    // Is the drag really is allowed? I don't wanna make everything draggable
+    // I don't want to allow dropping say images
+    if (event.dataTransfer && event.dataTransfer.types[0] === "text/plain") {
+      // Drop is only allowed if in the drag overhandler of the same element
+      // The default for js drag-n-drop is to not allow dropping
+      event.preventDefault();
+      const listEl = this.element.querySelector("ul")!;
+      listEl.classList.add("droppable");
+    }
+  }
+
+  @autobind
+  dropHandler(event: DragEvent): void {
+    // At the point of dropping, we will be able to get the data being transferred
+    // console.log(event);
+    // console.log(event.dataTransfer!.getData("text/plain"));
+    const prjId = event.dataTransfer!.getData("text/plain");
+    projectState.moveProject(
+      prjId,
+      this.type === "active" ? ProjectStatus.Active : ProjectStatus.Finished
+    );
+  }
+
+  @autobind
+  dragLeaveHandler(_: DragEvent): void {
+    const listEl = this.element.querySelector("ul")!;
+    listEl.classList.remove("droppable");
   }
 
   private renderProjects() {
@@ -257,6 +315,10 @@ class ProjectList extends Component<HTMLDivElement, HTMLElement> {
   }
 
   configure() {
+    // to make sure the drag handler is actually fired when we drag
+    this.element.addEventListener("dragover", this.dragOverHandler);
+    this.element.addEventListener("dragleave", this.dragLeaveHandler);
+    this.element.addEventListener("drop", this.dropHandler);
     projectState.addListener((projects: Project[]) => {
       const relevantProjects = projects.filter((prj) => {
         if (this.type === "active") {
