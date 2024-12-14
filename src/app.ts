@@ -18,7 +18,7 @@ type Listener<T> = (items: T[]) => void;
 class State<T> {
   protected listeners: Listener<T>[] = [];
 
-  addlistener(listenerFn: Listener<T>) {
+  addListener(listenerFn: Listener<T>) {
     this.listeners.push(listenerFn);
   }
 }
@@ -43,9 +43,9 @@ class ProjectState extends State<Project> {
     return this.instance;
   }
 
-  addListener(listenerFn: Listener) {
-    this.listeners.push(listenerFn);
-  }
+  // addListener(listenerFn: Listener) {
+  //   this.listeners.push(listenerFn);
+  // }
 
   addProject(title: string, description: string, numOfPeople: number) {
     const newProject = new Project(
